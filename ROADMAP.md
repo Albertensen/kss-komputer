@@ -41,7 +41,7 @@ Target: Membangun logika validasi PC Builder, keranjang, dan komparasi produk.
   - Gunakan `zustand` dengan `persist` (`name: 'pc-builder-storage'`).
   - State: `selections: BuildSelections`, `strictFilterEnabled: boolean`, `assembleService: boolean` (biaya rakit & *cable management* Rp 100.000), `customBuildName: string`.
   - Actions: `addPart(category, product)`, `removePart(category, index)`, `updateQuantity(category, index, qty)`, `clearCategory(category)`, `clearAll()`, `loadTemplate(template: PrebuiltTemplate, allProducts: Product[])`, `toggleStrictFilter()`, `toggleAssembleService()`, `importFromEncodedString(code: string)`, `exportToEncodedString(): string`.
-- [ ] **2.3 Buat `src/store/useCompareStore.ts` & `src/store/useCartStore.ts`**:
+- [x] **2.3 Buat `src/store/useCompareStore.ts` & `src/store/useCartStore.ts`**:
   - `useCompareStore`: State daftar produk yang dibandingkan (maksimal 4 item), action `toggleCompareProduct(product)`, `clearCompare()`.
   - `useCartStore`: State item keranjang belanja reguler, action `addItem(product, qty)`, `addBulkFromBuilder(items: SelectedBuildItem[])`, `removeItem(productId)`, `updateQty(productId, qty)`, `clearCart()`.
 
