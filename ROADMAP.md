@@ -50,9 +50,9 @@ Target: Membangun logika validasi PC Builder, keranjang, dan komparasi produk.
 ## FASE 3: LAYOUT GLOBAL, COMMAND SEARCH (`Cmd+K`) & HIGH-DENSITY HOMEPAGE
 Target: Antarmuka utama yang cepat, tajam, dan bebas *AI slop*.
 
-- [ ] **3.1 Buat `src/components/catalog/SpecBadges.tsx`**:
+- [x] **3.1 Buat `src/components/catalog/SpecBadges.tsx`**:
   - Komponen pembantu yang menerima `product: Product` dan merender 3-4 *badge* teknis kotak (`font-mono text-[11px]`) secara otomatis sesuai kategorinya (contoh untuk Mobo: `[AM5] [B650] [DDR5] [mATX]`, untuk GPU: `[16GB GDDR6X] [285W] [305mm]`).
-- [ ] **3.2 Buat `src/components/layout/CommandSearchModal.tsx`**:
+- [x] **3.2 Buat `src/components/layout/CommandSearchModal.tsx`**:
   - Modal pencarian cepat yang dipicu oleh tombol di Navbar atau pintasan keyboard `Cmd+K` / `Ctrl+K`.
   - Mendukung pencarian multi-token (misal pengguna mengetik `"am5 ddr5 msi"` atau `"4060 ti"` langsung memfilter produk berdasarkan nama, SKU, brand, maupun atribut spesifikasi).
   - Dari hasil pencarian, pengguna bisa langsung klik **`+ Simulasi`**, **`+ Keranjang`**, atau membuka halaman detail produk.
