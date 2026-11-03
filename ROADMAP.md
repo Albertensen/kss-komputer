@@ -34,7 +34,7 @@ Target: Menyiapkan kontrak data yang kuat dan 40+ komponen PC nyata di pasar Ind
 ## FASE 2: ENGINE KOMPATIBILITAS & STATE MANAGEMENT (ZUSTAND)
 Target: Membangun logika validasi PC Builder, keranjang, dan komparasi produk.
 
-- [ ] **2.1 Buat `src/lib/compatibility.ts`**:
+- [x] **2.1 Buat `src/lib/compatibility.ts`**:
   - Implementasikan fungsi `validateBuild(selections: BuildSelections): CompatibilityReport` sesuai dengan 9 aturan di `ARCHITECTURE.md`.
   - Buat fungsi `isProductCompatibleWithCurrentBuild(product: Product, selections: BuildSelections): { compatible: boolean; reason?: string }` untuk digunakan oleh filter otomatis di pemilih komponen.
 - [ ] **2.2 Buat `src/store/useBuilderStore.ts`**:
