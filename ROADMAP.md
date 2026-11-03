@@ -78,12 +78,12 @@ Target: Antarmuka utama yang cepat, tajam, dan bebas *AI slop*.
 ## FASE 4: KATALOG DUAL-VIEW (ENTERKOMPUTER PRICELIST TABLE vs COMPACT GRID)
 Target: Halaman katalog dengan pemfilteran spesifikasi teknis yang instan.
 
-- [ ] **4.1 Buat `src/components/catalog/FilterSidebar.tsx`**:
+- [x] **4.1 Buat `src/components/catalog/FilterSidebar.tsx`**:
   - Filter berdasarkan Kategori, Status Stok (`Hanya Ready Stock`), Brand, Rentang Harga Minimum/Maksimum, serta filter teknis kontekstual:
     - Socket (`AM5`, `AM4`, `LGA1700`)
     - Tipe RAM (`DDR4`, `DDR5`)
     - Form Factor (`ATX`, `mATX`, `ITX`)
-- [ ] **4.2 Buat `src/components/catalog/ProductRowPricelist.tsx` (Mode Tabel Enterkomputer)**:
+- [x] **4.2 Buat `src/components/catalog/ProductRowPricelist.tsx` (Mode Tabel Enterkomputer)**:
   - Baris tabel berdensitas tinggi (`border-b border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100/70 dark:hover:bg-zinc-900`) yang menampilkan:
     - Kolom 1: SKU (`font-mono text-xs text-zinc-500`) & Brand
     - Kolom 2: Nama Produk (link ke `/produk/[slug]`) + deretan `SpecBadges`

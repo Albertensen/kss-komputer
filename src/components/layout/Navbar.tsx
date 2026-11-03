@@ -25,11 +25,20 @@ import { useCartStore } from '@/store/useCartStore';
 import { formatIDR } from '@/lib/format';
 import { CommandSearchModal } from '@/components/layout/CommandSearchModal';
 
+import { useHydrated } from '@/lib/useHydrated';
+
 export function Navbar() {
   const pathname = usePathname();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const isMounted = useHydrated();
+
+  // Reset mobile menu saat pathname berubah
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
+    setIsMobileMenuOpen(false);
+  }
 
   // Zustand stores
   const builderPartCount = useBuilderStore((state) => state.getItemCount());
@@ -37,10 +46,6 @@ export function Navbar() {
   const compareCount = useCompareStore((state) => state.products.length);
   const cartCount = useCartStore((state) => state.getTotalItemsCount());
   const openCart = useCartStore((state) => state.openCart);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   // Keyboard shortcut Ctrl+K / Cmd+K
   useEffect(() => {
@@ -53,11 +58,6 @@ export function Navbar() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  // Tutup mobile menu saat rute berpindah
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [pathname]);
 
   const navLinks = [
     {

@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, MessageSquareCheck } from 'lucide-react';
 import { useCartStore } from '@/store/useCartStore';
-import { formatIDR } from '@/lib/format';
-import { CATEGORY_LABELS } from '@/lib/format';
+import { formatIDR, CATEGORY_LABELS } from '@/lib/format';
+import { useHydrated } from '@/lib/useHydrated';
 
 export function CartDrawer() {
-  const [mounted, setMounted] = useState(false);
+  const isHydrated = useHydrated();
   const isOpen = useCartStore((state) => state.isOpen);
   const items = useCartStore((state) => state.items);
   const closeCart = useCartStore((state) => state.closeCart);
@@ -17,10 +17,6 @@ export function CartDrawer() {
   const clearCart = useCartStore((state) => state.clearCart);
   const getTotalPrice = useCartStore((state) => state.getTotalPrice);
   const getTotalItemsCount = useCartStore((state) => state.getTotalItemsCount);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Tutup drawer jika tombol ESC ditekan
   useEffect(() => {
@@ -33,7 +29,7 @@ export function CartDrawer() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, closeCart]);
 
-  if (!mounted || !isOpen) return null;
+  if (!isHydrated || !isOpen) return null;
 
   const totalPrice = getTotalPrice();
   const totalCount = getTotalItemsCount();

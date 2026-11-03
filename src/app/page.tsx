@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Cpu,
@@ -23,14 +23,12 @@ import {
   Search,
   Sparkles,
   ChevronRight,
-  TrendingDown,
   Wrench,
-  Clock,
-  Shield,
 } from 'lucide-react';
 import { ProductCategory, Product, PrebuiltTemplate } from '@/lib/types';
 import { MOCK_PRODUCTS, MOCK_TEMPLATES } from '@/lib/mock-data';
 import { formatIDR, formatWatt, CATEGORY_LABELS } from '@/lib/format';
+import { useHydrated } from '@/lib/useHydrated';
 import { SpecBadges } from '@/components/catalog/SpecBadges';
 import { useBuilderStore } from '@/store/useBuilderStore';
 import { useCartStore } from '@/store/useCartStore';
@@ -66,7 +64,7 @@ const ORDERED_CATEGORIES: ProductCategory[] = [
 ];
 
 export default function HomePage() {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [activeTab, setActiveTab] = useState<string>('all');
   const [tableSearch, setTableSearch] = useState<string>('');
   const [notification, setNotification] = useState<string | null>(null);
@@ -82,10 +80,6 @@ export default function HomePage() {
   const addItemToCart = useCartStore((state) => state.addItem);
   const toggleCompare = useCompareStore((state) => state.toggleCompareProduct);
   const isComparing = useCompareStore((state) => state.isComparing);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const showToast = (message: string) => {
     setNotification(message);

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { Search, X, Plus, ShoppingCart, Cpu, Check, ArrowRight } from 'lucide-react';
+import { Search, X, ShoppingCart, Cpu, Check, ArrowRight } from 'lucide-react';
 import { Product } from '@/lib/types';
 import { MOCK_PRODUCTS } from '@/lib/mock-data';
 import { formatIDR } from '@/lib/format';
@@ -50,16 +50,24 @@ export function CommandSearchModal({ isOpen, onClose }: CommandSearchModalProps)
   const addPart = useBuilderStore((state) => state.addPart);
   const addItem = useCartStore((state) => state.addItem);
 
-  // Fokus input otomatis saat modal dibuka
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 50);
-    } else {
+  // Reset query jika modal ditutup
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (prevIsOpen !== isOpen) {
+    setPrevIsOpen(isOpen);
+    if (!isOpen) {
       setQuery('');
       setAddedBuilderId(null);
       setAddedCartId(null);
+    }
+  }
+
+  // Fokus input otomatis saat modal dibuka
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 

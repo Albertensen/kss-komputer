@@ -6,7 +6,6 @@ import {
   Wrench,
   Headphones,
   CheckCircle2,
-  ExternalLink,
   MapPin,
   Clock,
   Phone,
