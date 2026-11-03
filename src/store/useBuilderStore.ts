@@ -3,22 +3,21 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   BuildSelections,
   ProductCategory,
-  Product,
+  HardwarePart,
   SelectedBuildItem,
-  PrebuiltTemplate,
+  PrebuiltPC,
 } from '../lib/types';
-import { MOCK_PRODUCTS } from '../lib/mock-data';
+import { PARTS_BY_ID } from '../lib/mock-data';
+import { calculateDeltaPrice, getItemPart } from '../lib/compatibility';
 
-export const ASSEMBLE_SERVICE_FEE = 100000;
+export const DEFAULT_ASSEMBLY_FEE = 150000;
 
-// Memory fallback storage untuk SSR / Node.js
 const memoryStorage = {
   getItem: () => null,
   setItem: () => {},
   removeItem: () => {},
 };
 
-// Kategori yang mendukung multiple items (bukan pengganti tunggal)
 export const MULTI_ITEM_CATEGORIES: ReadonlyArray<ProductCategory> = [
   'ram',
   'ssd',
@@ -30,7 +29,8 @@ export const MULTI_ITEM_CATEGORIES: ReadonlyArray<ProductCategory> = [
 export interface EncodedBuildPayload {
   v: number;
   name?: string;
-  assemble?: boolean;
+  prebuiltId?: string;
+  fee?: number;
   parts: {
     c: ProductCategory;
     id: string;
@@ -38,9 +38,6 @@ export interface EncodedBuildPayload {
   }[];
 }
 
-/**
- * Encode payload build ke format string URL-safe Base64
- */
 export function encodeBuildPayload(payload: EncodedBuildPayload): string {
   const json = JSON.stringify(payload);
   if (typeof window !== 'undefined') {
@@ -58,9 +55,6 @@ export function encodeBuildPayload(payload: EncodedBuildPayload): string {
   return Buffer.from(json, 'utf-8').toString('base64url');
 }
 
-/**
- * Decode format string Base64 kembali ke struktur payload build
- */
 export function decodeBuildPayload(str: string): EncodedBuildPayload {
   const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
   const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
@@ -78,98 +72,112 @@ export function decodeBuildPayload(str: string): EncodedBuildPayload {
 }
 
 export interface BuilderState {
-  // State
   selections: BuildSelections;
-  strictFilterEnabled: boolean;
-  assembleService: boolean;
+  activePrebuilt: PrebuiltPC | null;
   customBuildName: string;
+  assemblyFee: number;
+  strictFilterEnabled: boolean;
 
   // Actions
-  addPart: (category: ProductCategory, product: Product, quantity?: number) => void;
-  removePart: (category: ProductCategory, index: number) => void;
+  selectPart: (category: ProductCategory, part: HardwarePart, quantity?: number) => void;
+  addPart: (category: ProductCategory, part: HardwarePart, quantity?: number) => void; // alias
+  removePart: (category: ProductCategory, index?: number) => void;
   updateQuantity: (category: ProductCategory, index: number, qty: number) => void;
   clearCategory: (category: ProductCategory) => void;
   clearAll: () => void;
-  loadTemplate: (template: PrebuiltTemplate, allProducts?: Product[]) => void;
-  toggleStrictFilter: () => void;
-  setStrictFilter: (enabled: boolean) => void;
-  toggleAssembleService: () => void;
-  setAssembleService: (enabled: boolean) => void;
-  setCustomBuildName: (name: string) => void;
-  exportToEncodedString: () => string;
-  importFromEncodedString: (code: string, allProducts?: Product[]) => boolean;
 
-  // Computed & Selectors
+  loadPrebuilt: (pkg: PrebuiltPC, partsMap?: Record<string, HardwarePart>) => void;
+  loadTemplate: (template: PrebuiltPC) => void; // alias
+
+  setCustomBuildName: (name: string) => void;
+  setAssemblyFee: (fee: number) => void;
+  toggleStrictFilter: () => void;
+
+  // Delta Pricing Helper
+  getDeltaPrice: (category: ProductCategory, candidatePart: HardwarePart) => number;
+
+  // Computations
   getAllSelectedItems: () => SelectedBuildItem[];
   getSubtotal: () => number;
   getTotalPrice: () => number;
   getTotalWattage: () => number;
   getItemCount: () => number;
-  getSelectedPartsCount: () => number;
+
+  exportToEncodedString: () => string;
+  importFromEncodedString: (code: string) => boolean;
 }
 
 export const useBuilderStore = create<BuilderState>()(
   persist(
     (set, get) => ({
       selections: {},
+      activePrebuilt: null,
+      customBuildName: 'Custom PC Rig KSS',
+      assemblyFee: DEFAULT_ASSEMBLY_FEE,
       strictFilterEnabled: true,
-      assembleService: false,
-      customBuildName: '',
 
-      addPart: (category: ProductCategory, product: Product, quantity = 1) => {
-        const safeQty = Math.max(1, quantity);
+      selectPart: (category: ProductCategory, part: HardwarePart, quantity = 1) => {
+        const safeQty = Math.max(1, Math.round(quantity));
         const isMulti = MULTI_ITEM_CATEGORIES.includes(category);
 
         set((state) => {
           const currentList = state.selections[category] || [];
 
-          if (isMulti) {
-            // Cek apakah item dengan product.id yang sama sudah ada di slot
-            const existingIndex = currentList.findIndex((item) => item.product.id === product.id);
-            if (existingIndex >= 0) {
-              const updatedList = [...currentList];
-              updatedList[existingIndex] = {
-                ...updatedList[existingIndex],
-                quantity: updatedList[existingIndex].quantity + safeQty,
-              };
-              return {
-                selections: {
-                  ...state.selections,
-                  [category]: updatedList,
-                },
-              };
-            }
-            // Tambahkan item baru ke daftar multi-item
+          if (!isMulti) {
+            // Penggantian slot tunggal (CPU, Mobo, VGA, PSU, Case, Cooler)
             return {
               selections: {
                 ...state.selections,
-                [category]: [...currentList, { product, quantity: safeQty }],
+                [category]: [{ part, product: part, quantity: safeQty }],
               },
             };
           }
 
-          // Slot tunggal (CPU, Motherboard, Case, PSU, Cooler, GPU): gantikan komponen sebelumnya
+          // Kategori multi-item (RAM, SSD, HDD, Peripheral, Monitor)
+          const existingIdx = currentList.findIndex(
+            (item) => getItemPart(item)?.id === part.id
+          );
+
+          if (existingIdx >= 0) {
+            const updated = [...currentList];
+            updated[existingIdx] = {
+              part,
+              product: part,
+              quantity: safeQty,
+            };
+            return {
+              selections: {
+                ...state.selections,
+                [category]: updated,
+              },
+            };
+          }
+
           return {
             selections: {
               ...state.selections,
-              [category]: [{ product, quantity: safeQty }],
+              [category]: [...currentList, { part, product: part, quantity: safeQty }],
             },
           };
         });
       },
 
-      removePart: (category: ProductCategory, index: number) => {
+      addPart: (category, part, quantity = 1) => {
+        get().selectPart(category, part, quantity);
+      },
+
+      removePart: (category: ProductCategory, index = 0) => {
         set((state) => {
           const currentList = state.selections[category];
-          if (!currentList) return state;
+          if (!currentList || currentList.length === 0) return state;
 
-          const updatedList = currentList.filter((_, idx) => idx !== index);
+          const updated = currentList.filter((_, idx) => idx !== index);
           const newSelections = { ...state.selections };
 
-          if (updatedList.length === 0) {
+          if (updated.length === 0) {
             delete newSelections[category];
           } else {
-            newSelections[category] = updatedList;
+            newSelections[category] = updated;
           }
 
           return { selections: newSelections };
@@ -177,25 +185,20 @@ export const useBuilderStore = create<BuilderState>()(
       },
 
       updateQuantity: (category: ProductCategory, index: number, qty: number) => {
-        if (qty <= 0) {
-          get().removePart(category, index);
-          return;
-        }
-
+        const safeQty = Math.max(1, Math.round(qty));
         set((state) => {
           const currentList = state.selections[category];
           if (!currentList || !currentList[index]) return state;
 
-          const updatedList = [...currentList];
-          updatedList[index] = {
-            ...updatedList[index],
-            quantity: Math.max(1, Math.round(qty)),
-          };
+          const updated = [...currentList];
+          const currentItem = updated[index];
+          const part = getItemPart(currentItem)!;
+          updated[index] = { part, product: part, quantity: safeQty };
 
           return {
             selections: {
               ...state.selections,
-              [category]: updatedList,
+              [category]: updated,
             },
           };
         });
@@ -203,7 +206,6 @@ export const useBuilderStore = create<BuilderState>()(
 
       clearCategory: (category: ProductCategory) => {
         set((state) => {
-          if (!state.selections[category]) return state;
           const newSelections = { ...state.selections };
           delete newSelections[category];
           return { selections: newSelections };
@@ -213,161 +215,177 @@ export const useBuilderStore = create<BuilderState>()(
       clearAll: () => {
         set({
           selections: {},
-          customBuildName: '',
-          assembleService: false,
+          activePrebuilt: null,
+          customBuildName: 'Custom PC Rig KSS',
+          assemblyFee: DEFAULT_ASSEMBLY_FEE,
         });
       },
 
-      loadTemplate: (template: PrebuiltTemplate, allProducts = MOCK_PRODUCTS) => {
+      loadPrebuilt: (pkg: PrebuiltPC, partsMap: Record<string, HardwarePart> = PARTS_BY_ID) => {
         const newSelections: BuildSelections = {};
 
-        for (const item of template.items) {
-          const foundProduct = allProducts.find((p) => p.id === item.productId);
-          if (foundProduct) {
-            if (!newSelections[item.category]) {
-              newSelections[item.category] = [];
-            }
-            newSelections[item.category]!.push({
-              product: foundProduct,
-              quantity: Math.max(1, item.quantity),
-            });
+        for (const [cat, item] of Object.entries(pkg.baseParts)) {
+          if (!item) continue;
+          const category = cat as ProductCategory;
+          const part = partsMap[item.partId];
+          if (part) {
+            newSelections[category] = [
+              {
+                part,
+                product: part,
+                quantity: item.quantity,
+              },
+            ];
           }
         }
 
         set({
           selections: newSelections,
-          customBuildName: template.name,
-          assembleService: false,
+          activePrebuilt: pkg,
+          customBuildName: pkg.name,
+          assemblyFee: pkg.assemblyFee || DEFAULT_ASSEMBLY_FEE,
         });
+      },
+
+      loadTemplate: (template: PrebuiltPC) => {
+        get().loadPrebuilt(template);
+      },
+
+      setCustomBuildName: (name: string) => {
+        set({ customBuildName: name.trim() || 'Custom PC Rig KSS' });
+      },
+
+      setAssemblyFee: (fee: number) => {
+        set({ assemblyFee: Math.max(0, fee) });
       },
 
       toggleStrictFilter: () => {
         set((state) => ({ strictFilterEnabled: !state.strictFilterEnabled }));
       },
 
-      setStrictFilter: (enabled: boolean) => {
-        set({ strictFilterEnabled: enabled });
+      getDeltaPrice: (category: ProductCategory, candidatePart: HardwarePart): number => {
+        const state = get();
+        const currentItem = state.selections[category]?.[0];
+        const basePart = getItemPart(currentItem);
+        return calculateDeltaPrice(basePart, candidatePart);
       },
 
-      toggleAssembleService: () => {
-        set((state) => ({ assembleService: !state.assembleService }));
+      getAllSelectedItems: () => {
+        const state = get();
+        const result: SelectedBuildItem[] = [];
+        for (const cat of Object.keys(state.selections) as ProductCategory[]) {
+          const items = state.selections[cat] || [];
+          for (const item of items) {
+            result.push(item);
+          }
+        }
+        return result;
       },
 
-      setAssembleService: (enabled: boolean) => {
-        set({ assembleService: enabled });
+      getSubtotal: () => {
+        const items = get().getAllSelectedItems();
+        return items.reduce((sum, item) => {
+          const part = getItemPart(item);
+          const price = part ? part.sellPrice || part.price || 0 : 0;
+          return sum + price * item.quantity;
+        }, 0);
       },
 
-      setCustomBuildName: (name: string) => {
-        set({ customBuildName: name });
+      getTotalPrice: () => {
+        const subtotal = get().getSubtotal();
+        const fee = get().assemblyFee;
+        return subtotal + fee;
       },
 
-      exportToEncodedString: (): string => {
+      getTotalWattage: () => {
+        const items = get().getAllSelectedItems();
+        let total = items.reduce((sum, item) => {
+          const part = getItemPart(item);
+          const watt = part?.wattage || 0;
+          return sum + watt * item.quantity;
+        }, 0);
+        if (total > 0 && !get().selections.motherboard) {
+          total += 30; // mobo baseline
+        }
+        return total;
+      },
+
+      getItemCount: () => {
+        return get().getAllSelectedItems().reduce((sum, item) => sum + item.quantity, 0);
+      },
+
+      exportToEncodedString: () => {
         const state = get();
         const parts: EncodedBuildPayload['parts'] = [];
 
-        (Object.keys(state.selections) as ProductCategory[]).forEach((cat) => {
-          const items = state.selections[cat];
-          if (items && items.length > 0) {
-            items.forEach((item) => {
+        for (const cat of Object.keys(state.selections) as ProductCategory[]) {
+          const items = state.selections[cat] || [];
+          for (const item of items) {
+            const part = getItemPart(item);
+            if (part) {
               parts.push({
                 c: cat,
-                id: item.product.id,
+                id: part.id,
                 q: item.quantity,
               });
-            });
+            }
           }
-        });
+        }
 
         const payload: EncodedBuildPayload = {
-          v: 1,
-          name: state.customBuildName.trim() || undefined,
-          assemble: state.assembleService ? true : undefined,
+          v: 2,
+          name: state.customBuildName,
+          prebuiltId: state.activePrebuilt?.id,
+          fee: state.assemblyFee,
           parts,
         };
 
         return encodeBuildPayload(payload);
       },
 
-      importFromEncodedString: (code: string, allProducts = MOCK_PRODUCTS): boolean => {
+      importFromEncodedString: (code: string) => {
         try {
-          if (!code || typeof code !== 'string') return false;
-          const payload = decodeBuildPayload(code.trim());
-          if (!payload || !Array.isArray(payload.parts)) return false;
+          const payload = decodeBuildPayload(code);
+          if (!payload || !payload.parts || !Array.isArray(payload.parts)) {
+            return false;
+          }
 
           const newSelections: BuildSelections = {};
-
-          for (const part of payload.parts) {
-            const foundProduct = allProducts.find((p) => p.id === part.id);
-            if (foundProduct) {
-              if (!newSelections[part.c]) {
-                newSelections[part.c] = [];
-              }
-              newSelections[part.c]!.push({
-                product: foundProduct,
-                quantity: Math.max(1, part.q || 1),
-              });
+          for (const entry of payload.parts) {
+            const part = PARTS_BY_ID[entry.id];
+            if (part && entry.c) {
+              const currentList = newSelections[entry.c] || [];
+              newSelections[entry.c] = [
+                ...currentList,
+                { part, product: part, quantity: entry.q || 1 },
+              ];
             }
           }
 
           set({
             selections: newSelections,
-            customBuildName: payload.name || '',
-            assembleService: Boolean(payload.assemble),
+            customBuildName: payload.name || 'Custom PC Rig KSS',
+            assemblyFee: payload.fee !== undefined ? payload.fee : DEFAULT_ASSEMBLY_FEE,
           });
 
           return true;
-        } catch {
+        } catch (err) {
+          console.error('Failed to import build code:', err);
           return false;
         }
       },
-
-      getAllSelectedItems: (): SelectedBuildItem[] => {
-        const { selections } = get();
-        const items: SelectedBuildItem[] = [];
-        (Object.keys(selections) as ProductCategory[]).forEach((cat) => {
-          const list = selections[cat];
-          if (list && list.length > 0) {
-            items.push(...list);
-          }
-        });
-        return items;
-      },
-
-      getSubtotal: (): number => {
-        const items = get().getAllSelectedItems();
-        return items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-      },
-
-      getTotalPrice: (): number => {
-        const subtotal = get().getSubtotal();
-        return get().assembleService ? subtotal + ASSEMBLE_SERVICE_FEE : subtotal;
-      },
-
-      getTotalWattage: (): number => {
-        const items = get().getAllSelectedItems();
-        return items.reduce((sum, item) => sum + item.product.wattage * item.quantity, 0);
-      },
-
-      getItemCount: (): number => {
-        const items = get().getAllSelectedItems();
-        return items.reduce((count, item) => count + item.quantity, 0);
-      },
-
-      getSelectedPartsCount: (): number => {
-        const items = get().getAllSelectedItems();
-        return items.reduce((count, item) => count + item.quantity, 0);
-      },
     }),
     {
-      name: 'pc-builder-storage',
+      name: 'kss-builder-storage',
       storage: createJSONStorage(() =>
         typeof window !== 'undefined' ? window.localStorage : memoryStorage
       ),
       partialize: (state) => ({
         selections: state.selections,
-        strictFilterEnabled: state.strictFilterEnabled,
-        assembleService: state.assembleService,
+        activePrebuilt: state.activePrebuilt,
         customBuildName: state.customBuildName,
+        assemblyFee: state.assemblyFee,
+        strictFilterEnabled: state.strictFilterEnabled,
       }),
     }
   )

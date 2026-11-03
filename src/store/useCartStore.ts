@@ -70,9 +70,12 @@ export const useCartStore = create<CartState>()(
           const updatedItems = [...state.items];
 
           for (const buildItem of buildItems) {
+            const part = buildItem.part || buildItem.product;
+            if (!part) continue;
+
             const safeQty = Math.max(1, Math.round(buildItem.quantity));
             const existingIndex = updatedItems.findIndex(
-              (item) => item.product.id === buildItem.product.id
+              (item) => item.product.id === part.id
             );
 
             if (existingIndex >= 0) {
@@ -82,7 +85,7 @@ export const useCartStore = create<CartState>()(
               };
             } else {
               updatedItems.push({
-                product: buildItem.product,
+                product: part,
                 quantity: safeQty,
               });
             }

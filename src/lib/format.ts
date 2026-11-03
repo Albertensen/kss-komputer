@@ -1,172 +1,147 @@
-import { SelectedBuildItem, ProductCategory } from './types';
+import { ProductCategory } from './types';
+
+export const TOKOPEDIA_OFFICIAL_STORE_URL = 'https://tk.tokopedia.com/ZSpeToWkH/';
+export const DEFAULT_WHATSAPP_PHONE = '6281234567890'; // Nomor CS WhatsApp KSS Komputer
 
 /**
- * Format angka menjadi representasi Rupiah Indonesia standar.
- * Contoh: 2450000 -> "Rp 2.450.000" (tanpa sen/desimal ,00).
+ * Format angka ke format mata uang Rupiah Indonesia (Rp 8.500.000)
  */
 export function formatIDR(amount: number): string {
-  const rounded = Math.round(Number.isFinite(amount) ? amount : 0);
+  const safeAmount = Math.round(Number(amount) || 0);
   const formatted = new Intl.NumberFormat('id-ID', {
-    minimumFractionDigits: 0,
+    style: 'decimal',
     maximumFractionDigits: 0,
-  }).format(rounded);
+  }).format(safeAmount);
+
   return `Rp ${formatted}`;
 }
 
 /**
- * Format angka daya menjadi representasi Watt.
- * Contoh: 350 -> "350W".
+ * Format selisih harga (Delta Pricing) untuk quick upgrader & konfigurator
+ * - 0 => '[Termasuk dalam Paket]' atau 'Standar'
+ * - > 0 => '+ Rp 450.000'
+ * - < 0 => '- Rp 200.000'
+ */
+export function formatDeltaIDR(diff: number, includeBrackets = false): string {
+  const safeDiff = Math.round(Number(diff) || 0);
+
+  if (safeDiff === 0) {
+    return includeBrackets ? '[Termasuk dalam Paket]' : 'Termasuk dalam Paket';
+  }
+
+  const sign = safeDiff > 0 ? '+ ' : '- ';
+  const absAmount = formatIDR(Math.abs(safeDiff));
+  const text = `${sign}${absAmount}`;
+
+  return includeBrackets ? `[${text}]` : text;
+}
+
+/**
+ * Format angka Wattase (contoh: 450W)
  */
 export function formatWatt(watt: number): string {
-  const safeWatt = Math.round(Number.isFinite(watt) ? watt : 0);
-  return `${safeWatt}W`;
+  return `${Math.round(Number(watt) || 0)}W`;
 }
 
-/**
- * Format tanggal dalam format standar Indonesia.
- */
-export function formatDate(dateInput: string | Date = new Date()): string {
-  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-  if (isNaN(date.getTime())) return typeof dateInput === 'string' ? dateInput : 'Hari ini';
-
-  return new Intl.DateTimeFormat('id-ID', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-}
-
-/**
- * Label nama kategori dalam bahasa Indonesia yang ramah pengguna.
- */
 export const CATEGORY_LABELS: Record<ProductCategory, string> = {
   cpu: 'Processor (CPU)',
   motherboard: 'Motherboard',
+  cooler: 'CPU Cooler',
   ram: 'Memory (RAM)',
   gpu: 'VGA / Kartu Grafis',
-  ssd: 'SSD Storage',
-  hdd: 'Harddisk (HDD)',
+  ssd: 'Storage (SSD NVMe)',
+  hdd: 'Storage Tambahan (HDD)',
   psu: 'Power Supply (PSU)',
   case: 'Casing PC',
-  cooler: 'CPU Cooler',
   monitor: 'Monitor',
-  peripheral: 'Aksesoris / Peripheral',
+  peripheral: 'Aksesoris & Peripheral',
 };
 
-/**
- * Susun teks pesanan rapi untuk dikirim langsung ke WhatsApp Admin KSS Komputer.
- */
-export function generateWhatsAppBuildUrl(
-  phone: string,
-  items: SelectedBuildItem[],
-  totalPrice: number,
-  options: {
-    assembleService?: boolean;
-    notes?: string;
-    buildName?: string;
-  } = {}
-): string {
-  // Normalisasi nomor telepon Indonesia (misal: 0812... -> 62812...)
-  let cleanPhone = phone.replace(/[^0-9]/g, '');
-  if (cleanPhone.startsWith('0')) {
-    cleanPhone = '62' + cleanPhone.slice(1);
-  } else if (!cleanPhone.startsWith('62')) {
-    cleanPhone = '62' + cleanPhone;
-  }
+export interface WhatsAppOrderPayload {
+  buildName: string;
+  items: {
+    category: ProductCategory;
+    name: string;
+    quantity: number;
+  }[];
+  totalPrice: number;
+  customerName?: string;
+  notes?: string;
+  isCustomBuild?: boolean;
+}
 
-  const ASSEMBLE_FEE = 100000;
-  const grandTotal = options.assembleService ? totalPrice + ASSEMBLE_FEE : totalPrice;
+/**
+ * Generate tautan WhatsApp checkout resmi KSS Komputer.
+ * Sesuai aturan bisnis KSS Komputer:
+ * Menampilkan rincian part secara utuh tetapi TIDAK membeberkan harga satuan per part (hanya Total Harga Paket).
+ */
+export function generateWhatsAppOrderUrl(
+  phone: string = DEFAULT_WHATSAPP_PHONE,
+  payload: WhatsAppOrderPayload
+): string {
+  const cleanPhone = phone.replace(/[^0-9]/g, '');
 
   const lines: string[] = [
-    `*PESANAN SIMULASI RAKITAN PC — KSS KOMPUTER*`,
-    options.buildName ? `*Nama Rakitan:* ${options.buildName}` : '',
-    `----------------------------------------`,
-    `*DAFTAR KOMPONEN:*`,
-  ].filter(Boolean);
+    `*HALO KSS KOMPUTER, SAYA MAU PESAN PC RAKITAN:*`,
+    `━━━━━━━━━━━━━━━━━━━━━━`,
+    `*Paket / Konfigurasi:* ${payload.buildName}`,
+  ];
 
-  if (items.length === 0) {
-    lines.push('(Belum ada komponen yang dipilih)');
-  } else {
-    items.forEach((item, index) => {
-      const catLabel = CATEGORY_LABELS[item.product.category] || item.product.category.toUpperCase();
-      const subtotal = item.product.price * item.quantity;
-      lines.push(
-        `${index + 1}. *[${catLabel}]* ${item.product.name}\n   Jumlah: ${item.quantity}x @ ${formatIDR(item.product.price)} = *${formatIDR(subtotal)}*`
-      );
-    });
+  if (payload.customerName) {
+    lines.push(`*Nama Pemesan:* ${payload.customerName}`);
   }
 
-  lines.push(`----------------------------------------`);
-  lines.push(`*Subtotal Komponen:* ${formatIDR(totalPrice)}`);
-  if (options.assembleService) {
-    lines.push(`*Jasa Rakit & Manajemen Kabel:* ${formatIDR(ASSEMBLE_FEE)} (Aktif)`);
-  } else {
-    lines.push(`*Jasa Rakit:* Tidak (Kirim Part Saja)`);
-  }
-  lines.push(`*ESTIMASI TOTAL:* *${formatIDR(grandTotal)}*`);
-  lines.push(`----------------------------------------`);
+  lines.push(`\n*RINCIAN SPESIFIKASI RAKITAN:*`);
 
-  if (options.notes && options.notes.trim()) {
-    lines.push(`*Catatan Tambahan:*\n${options.notes.trim()}`);
-    lines.push(`----------------------------------------`);
+  payload.items.forEach((item, idx) => {
+    const catLabel = CATEGORY_LABELS[item.category] || item.category;
+    const qtyStr = item.quantity > 1 ? ` (${item.quantity}x)` : '';
+    lines.push(`${idx + 1}. *${catLabel}*: ${item.name}${qtyStr}`);
+  });
+
+  lines.push(`\n*STATUS UNIT:*`);
+  lines.push(`✓ Sudah Dirakit Rapi (Clean Cable Management)`);
+  lines.push(`✓ Lulus Stress-Test Hardware 24 Jam`);
+  lines.push(`✓ Garansi Resmi Distributor & Garansi Toko`);
+
+  if (payload.notes) {
+    lines.push(`\n*Catatan Khusus:* ${payload.notes}`);
   }
 
-  lines.push(
-    `Halo Admin KSS Komputer, saya ingin menanyakan ketersediaan stok komponen di atas dan konfirmasi total pembayarannya. Terima kasih!`
-  );
+  lines.push(`━━━━━━━━━━━━━━━━━━━━━━`);
+  lines.push(`*TOTAL HARGA PAKET: ${formatIDR(payload.totalPrice)}*`);
+  lines.push(`\nMohon info ketersediaan stok & jadwal perakitan/pengiriman. Terima kasih!`);
 
   const message = lines.join('\n');
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 }
 
 /**
- * Format teks polos / Markdown untuk ekspor ke Clipboard (Discord, Forum PC, & Catatan Pribadi).
+ * Format teks spesifikasi untuk disalin ke clipboard (Discord / Forum / Catatan)
  */
 export function generateBuildPlainText(
-  items: SelectedBuildItem[],
+  buildName: string,
+  items: { category: ProductCategory; name: string; quantity: number }[],
   totalPrice: number,
-  totalWattage: number,
-  options: {
-    assembleService?: boolean;
-    buildName?: string;
-  } = {}
+  totalWattage: number
 ): string {
-  const ASSEMBLE_FEE = 100000;
-  const grandTotal = options.assembleService ? totalPrice + ASSEMBLE_FEE : totalPrice;
-
-  const header = [
-    `================================================================`,
-    ` SIMULASI RAKITAN PC — KSS KOMPUTER (ksskomputer.id)`,
-    options.buildName ? ` Nama Racikan: ${options.buildName}` : '',
-    `================================================================`,
-  ].filter(Boolean);
-
-  const body: string[] = [];
-
-  if (items.length === 0) {
-    body.push(`(Tidak ada komponen yang dipilih)`);
-  } else {
-    items.forEach((item) => {
-      const catLabel = (CATEGORY_LABELS[item.product.category] || item.product.category).padEnd(20, ' ');
-      const subtotal = item.product.price * item.quantity;
-      body.push(
-        `[${catLabel}] ${item.product.name}\n   Qty: ${item.quantity} x ${formatIDR(item.product.price)} = ${formatIDR(subtotal)}`
-      );
-    });
-  }
-
-  const footer = [
-    `----------------------------------------------------------------`,
-    `Subtotal Part      : ${formatIDR(totalPrice)}`,
-    options.assembleService ? `Jasa Rakit & Test  : ${formatIDR(ASSEMBLE_FEE)}` : `Jasa Rakit         : Tidak Dipilih`,
-    `TOTAL KESELURUHAN  : ${formatIDR(grandTotal)}`,
+  const lines: string[] = [
+    `=== SPESIFIKASI PC RAKITAN KSS KOMPUTER ===`,
+    `Paket / Nama: ${buildName}`,
     `Estimasi Total Daya: ${formatWatt(totalWattage)}`,
-    `================================================================`,
-    `* Harga dan ketersediaan stok dapat berubah sewaktu-waktu.`,
-    `* Hubungi KSS Komputer untuk konsultasi & pemesanan.`,
+    `------------------------------------------`,
   ];
 
-  return [...header, ...body, ...footer].join('\n');
+  items.forEach((item) => {
+    const catLabel = CATEGORY_LABELS[item.category] || item.category;
+    const qtyStr = item.quantity > 1 ? ` [${item.quantity}x]` : '';
+    lines.push(`- ${catLabel}: ${item.name}${qtyStr}`);
+  });
+
+  lines.push(`------------------------------------------`);
+  lines.push(`TOTAL HARGA RAKITAN: ${formatIDR(totalPrice)} (Siap Pakai)`);
+  lines.push(`Toko Resmi Tokopedia: ${TOKOPEDIA_OFFICIAL_STORE_URL}`);
+  lines.push(`==========================================`);
+
+  return lines.join('\n');
 }

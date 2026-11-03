@@ -150,7 +150,7 @@ export default function HomePage() {
   };
 
   const handleLoadTemplate = (tpl: PrebuiltTemplate) => {
-    loadTemplate(tpl, MOCK_PRODUCTS);
+    loadTemplate(tpl);
     showToast(`Template "${tpl.name}" berhasil dimuat ke Simulasi Rakitan!`);
   };
 
@@ -158,8 +158,8 @@ export default function HomePage() {
   const spotlightTemplates = MOCK_TEMPLATES.slice(0, 2);
 
   // Ambil CPU & GPU yang sedang aktif di builder untuk ringkasan di banner
-  const activeCpu = selections.cpu?.[0]?.product;
-  const activeGpu = selections.gpu?.[0]?.product;
+  const activeCpu = selections.cpu?.[0]?.part || selections.cpu?.[0]?.product;
+  const activeGpu = selections.gpu?.[0]?.part || selections.gpu?.[0]?.product;
 
   return (
     <div className="mx-auto max-w-7xl px-3 sm:px-4 py-4 space-y-5">
@@ -321,11 +321,12 @@ export default function HomePage() {
 
           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
             {spotlightTemplates.map((tpl) => {
-              // Hitung harga paket dari mock products
-              const packagePrice = tpl.items.reduce((sum, itm) => {
-                const prod = MOCK_PRODUCTS.find((p) => p.id === itm.productId);
-                return sum + (prod ? prod.price * itm.quantity : 0);
-              }, 0);
+              const basePartsEntries = Object.values(tpl.baseParts);
+              const packagePrice = basePartsEntries.reduce((sum: number, itm) => {
+                if (!itm) return sum;
+                const prod = MOCK_PRODUCTS.find((p) => p.id === itm.partId);
+                return sum + (prod ? (prod.sellPrice || prod.price) * itm.quantity : 0);
+              }, tpl.assemblyFee || 150000);
 
               return (
                 <div
@@ -335,10 +336,10 @@ export default function HomePage() {
                   <div>
                     <div className="flex items-center justify-between gap-1 mb-1">
                       <span className="rounded-sm border border-blue-600/30 bg-blue-600/10 px-1.5 py-0.2 font-mono text-[10px] font-bold uppercase text-blue-700 dark:text-blue-400">
-                        {tpl.targetResolution} Gaming
+                        {tpl.targetResolution}
                       </span>
                       <span className="font-mono text-[10px] text-zinc-500">
-                        {tpl.items.length} Komponen
+                        {basePartsEntries.length} Komponen
                       </span>
                     </div>
 

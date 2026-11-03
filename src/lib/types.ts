@@ -12,12 +12,11 @@ export type ProductCategory =
   | 'peripheral';
 
 export type StockStatus = 'ready' | 'low' | 'out_of_stock' | 'po';
-
 export type CpuSocket = 'AM4' | 'AM5' | 'LGA1700' | 'LGA1851';
 export type RamType = 'DDR4' | 'DDR5';
 export type FormFactor = 'ATX' | 'mATX' | 'ITX' | 'E-ATX';
 
-export interface ProductSpecs {
+export interface PartSpecs {
   // CPU & Motherboard
   socket?: CpuSocket;
   cores?: number;
@@ -25,19 +24,19 @@ export interface ProductSpecs {
   baseClockGhz?: number;
   boostClockGhz?: number;
   integratedGpu?: boolean;
-  chipset?: string;               // contoh: 'B650', 'X670E', 'B760', 'Z790'
+  chipset?: string;               // contoh: 'B650', 'B760', 'Z790', 'A520', 'X670'
   needsBiosUpdateForLatestGen?: boolean;
   cpuGenTag?: 'ryzen-7000' | 'ryzen-9000' | 'ryzen-5000' | 'intel-12-13' | 'intel-14' | 'intel-ultra-200';
 
   // Memory (RAM) & Motherboard
   ramType?: RamType;
   ramSlots?: number;
-  capacityGb?: number;            // contoh: 16, 32, 64
-  kitConfiguration?: string;      // contoh: '2x16GB', '2x8GB'
-  speedMhz?: number;              // contoh: 6000, 3200
+  capacityGb?: number;            // kapasitas total per modul/kit (contoh: 16, 32, 64)
+  kitConfiguration?: string;      // contoh: '2x16GB', '2x8GB', '1x16GB'
+  speedMhz?: number;              // contoh: 6000, 5600, 3200
   casLatency?: string;            // contoh: 'CL30', 'CL16'
 
-  // Form Factor & Dimensi (Motherboard, GPU, Case, Cooler)
+  // Form Factor & Dimensi
   formFactor?: FormFactor;
   supportedFormFactors?: FormFactor[]; // untuk Casing
   gpuLengthMm?: number;           // panjang fisik kartu grafis
@@ -53,7 +52,7 @@ export interface ProductSpecs {
   // Storage (SSD / HDD)
   storageInterface?: 'NVMe PCIe 4.0' | 'NVMe PCIe 5.0' | 'NVMe PCIe 3.0' | 'SATA III';
   readSpeedMbps?: number;
-  m2Slots?: number;               // jumlah slot M.2 pada Motherboard
+  m2Slots?: number;
 
   // PSU
   psuWattage?: number;
@@ -67,30 +66,89 @@ export interface ProductSpecs {
   panelType?: 'IPS' | 'VA' | 'OLED' | 'TN';
 }
 
-export interface Product {
+/**
+ * Komponen Hardware Komputer internal KSS Komputer
+ * Memiliki costPrice (modal distributor) dan sellPrice (harga jual ber-markup)
+ */
+export interface HardwarePart {
   id: string;
   sku: string;
   name: string;
   slug: string;
   brand: string;
   category: ProductCategory;
-  price: number;
-  originalPrice?: number;
+  costPrice: number;              // Modal rahasia toko (hanya tampil di admin)
+  sellPrice: number;              // Harga jual internal dasar
+  price: number;                  // Alias untuk sellPrice agar backward-compatible
+  originalPrice?: number;         // Harga sebelum diskon promo jika ada
   stockStatus: StockStatus;
-  wattage: number;                // Estimasi TDP / konsumsi daya komponen (0 untuk Casing/PSU)
+  wattage: number;                // TDP konsumsi daya
   warrantyYears: number;
-  officialDistributor?: string;   // contoh: 'EMD', 'Astrindo', 'WPG', 'NJT'
-  OfficialDistributor?: string;   // alias backward-compatibility
-  marketplaceLinks?: {
-    tokopedia?: string;
-    shopee?: string;
-  };
-  specs: ProductSpecs;
-  updatedAt: string;              // ISO Date atau 'Hari ini, 10:30'
+  officialDistributor?: string;   // contoh: 'EMD', 'Astrindo', 'NJT', 'WPG'
+  OfficialDistributor?: string;   // alias
+  specs: PartSpecs;
+  updatedAt: string;
 }
 
+// Alias untuk menjaga backward compatibility dengan kode sebelumnya
+export type Product = HardwarePart;
+export type ProductSpecs = PartSpecs;
+
+/**
+ * Paket PC Rakitan Jadi (Siap Pakai) KSS Komputer
+ */
+export interface PrebuiltPC {
+  id: string;
+  name: string;
+  slug: string;
+  tier: string;                   // contoh: '1080p Gaming Sweetspot', '4K Workstation Sultan'
+  categoryTag: 'office' | 'gaming-1080p' | 'gaming-1440p' | 'creator' | 'workstation' | 'sultan-4k';
+  platform: 'AMD Ryzen' | 'Intel Core';
+  description: string;
+  highlights: string[];
+  targetResolution: '1080p' | '1440p' | '4K' | 'Office';
+  estimatedFps: {
+    game: string;
+    fps: number;
+    settings: string;
+  }[];
+  // Komponen bawaan paket (kategori -> partId & qty)
+  baseParts: {
+    [K in ProductCategory]?: {
+      partId: string;
+      quantity: number;
+    };
+  };
+  assemblyFee: number;            // Biaya rakit & garansi toko
+  tokopediaUrl: string;           // Direct link ke Tokopedia resmi KSS Komputer
+  featured?: boolean;
+  warrantyYears: number;          // Garansi unit rakitan toko (misal: 1 atau 2 tahun)
+}
+
+// Backward-compatible alias
+export type PrebuiltTemplate = PrebuiltPC;
+
+/**
+ * Paket Layanan Jasa Komputer KSS Komputer
+ */
+export interface ServicePackage {
+  id: string;
+  title: string;
+  slug: string;
+  price: number;
+  duration: string;               // contoh: '1 - 2 Jam', 'Same Day', '1 Hari Kerja'
+  description: string;
+  features: string[];
+  popular?: boolean;
+  badge?: string;                 // contoh: 'Paling Dicari', 'Best Value'
+}
+
+/**
+ * Item Rakitan Aktif
+ */
 export interface SelectedBuildItem {
-  product: Product;
+  part: HardwarePart;
+  product?: HardwarePart;         // alias
   quantity: number;
 }
 
@@ -112,22 +170,4 @@ export interface CompatibilityReport {
   totalWattage: number;
   recommendedPsuWatt: number;
   psuHeadroomStatus: 'optimal' | 'tight' | 'insufficient' | 'no_psu';
-}
-
-export interface PrebuiltTemplate {
-  id: string;
-  name: string;
-  slug: string;
-  tier: 'Budget / Office' | '1080p Gaming' | '1440p Sweetspot' | '4K Workstation & AI';
-  description: string;
-  targetResolution: '1080p' | '1440p' | '4K';
-  estimatedFps: {
-    game: string;
-    fps: number;
-  }[];
-  items: {
-    category: ProductCategory;
-    productId: string;
-    quantity: number;
-  }[];
 }
