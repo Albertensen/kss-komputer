@@ -56,7 +56,7 @@ Target: Antarmuka utama yang cepat, tajam, dan bebas *AI slop*.
   - Modal pencarian cepat yang dipicu oleh tombol di Navbar atau pintasan keyboard `Cmd+K` / `Ctrl+K`.
   - Mendukung pencarian multi-token (misal pengguna mengetik `"am5 ddr5 msi"` atau `"4060 ti"` langsung memfilter produk berdasarkan nama, SKU, brand, maupun atribut spesifikasi).
   - Dari hasil pencarian, pengguna bisa langsung klik **`+ Simulasi`**, **`+ Keranjang`**, atau membuka halaman detail produk.
-- [ ] **3.3 Buat `src/components/layout/Navbar.tsx` & `Footer.tsx`**:
+- [x] **3.3 Buat `src/components/layout/Navbar.tsx` & `Footer.tsx`**:
   - **Top Utility Bar tipis**: Jam operasional toko offline/online, indikator *Pricelist Terupdate Hari Ini*, tombol *Download Pricelist*, dan nomor WhatsApp Sales.
   - **Main Navbar**: Logo tegas bergaya teknis, tombol trigger `CommandSearchModal` (`Cari komponen, SKU, atau socket... [Ctrl+K]`), menu navigasi ke:
     1. **Katalog & Pricelist** (`/katalog`)
@@ -65,7 +65,7 @@ Target: Antarmuka utama yang cepat, tajam, dan bebas *AI slop*.
     4. **Bandingkan** (`/bandingkan`) — dengan badge jumlah item
     5. **Admin Pricelist** (`/admin/pricelist`)
     6. **Drawer Keranjang Belanja**
-- [ ] **3.4 Buat `src/app/page.tsx` (High-Density Homepage)**:
+- [x] **3.4 Buat `src/app/page.tsx` (High-Density Homepage)**:
   - **Baris Kategori Cepat (11 Kategori)**: Kotak kompak dengan ikon teknis, nama kategori, jumlah SKU *Ready Stock*, dan harga mulai dari (`Mulai Rp ...`).
   - **Split Action Banner Padat (Bukan Hero Raksasa)**:
     - Kolom Kiri: Status Simulasi Rakitan Aktif milik pengguna (langsung menampilkan ringkasan CPU/GPU yang sedang dirakit atau tombol mulai merakit).

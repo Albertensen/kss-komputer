@@ -1420,3 +1420,7 @@ export const MOCK_TEMPLATES: PrebuiltTemplate[] = [
     ],
   },
 ];
+
+// Alias export untuk kompatibilitas
+export const PREBUILT_TEMPLATES = MOCK_TEMPLATES;
+

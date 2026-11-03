@@ -105,6 +105,7 @@ export interface BuilderState {
   getTotalPrice: () => number;
   getTotalWattage: () => number;
   getItemCount: () => number;
+  getSelectedPartsCount: () => number;
 }
 
 export const useBuilderStore = create<BuilderState>()(
@@ -348,6 +349,11 @@ export const useBuilderStore = create<BuilderState>()(
       },
 
       getItemCount: (): number => {
+        const items = get().getAllSelectedItems();
+        return items.reduce((count, item) => count + item.quantity, 0);
+      },
+
+      getSelectedPartsCount: (): number => {
         const items = get().getAllSelectedItems();
         return items.reduce((count, item) => count + item.quantity, 0);
       },
