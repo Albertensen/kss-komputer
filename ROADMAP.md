@@ -37,7 +37,7 @@ Target: Membangun logika validasi PC Builder, keranjang, dan komparasi produk.
 - [x] **2.1 Buat `src/lib/compatibility.ts`**:
   - Implementasikan fungsi `validateBuild(selections: BuildSelections): CompatibilityReport` sesuai dengan 9 aturan di `ARCHITECTURE.md`.
   - Buat fungsi `isProductCompatibleWithCurrentBuild(product: Product, selections: BuildSelections): { compatible: boolean; reason?: string }` untuk digunakan oleh filter otomatis di pemilih komponen.
-- [ ] **2.2 Buat `src/store/useBuilderStore.ts`**:
+- [x] **2.2 Buat `src/store/useBuilderStore.ts`**:
   - Gunakan `zustand` dengan `persist` (`name: 'pc-builder-storage'`).
   - State: `selections: BuildSelections`, `strictFilterEnabled: boolean`, `assembleService: boolean` (biaya rakit & *cable management* Rp 100.000), `customBuildName: string`.
   - Actions: `addPart(category, product)`, `removePart(category, index)`, `updateQuantity(category, index, qty)`, `clearCategory(category)`, `clearAll()`, `loadTemplate(template: PrebuiltTemplate, allProducts: Product[])`, `toggleStrictFilter()`, `toggleAssembleService()`, `importFromEncodedString(code: string)`, `exportToEncodedString(): string`.
