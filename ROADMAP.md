@@ -10,14 +10,14 @@
 ## FASE 1: FONDASI TIPE DATA, UTILITAS & DATABASE MOCK REALISTIS
 Target: Menyiapkan kontrak data yang kuat dan 40+ komponen PC nyata di pasar Indonesia.
 
-- [ ] **1.1 Buat `src/lib/types.ts`**:
+- [x] **1.1 Buat `src/lib/types.ts`**:
   - Implementasikan seluruh *interface* dan *type* sesuai spesifikasi di `ARCHITECTURE.md` (`ProductCategory`, `ProductSpecs`, `Product`, `BuildSelections`, `CompatibilityReport`, `PrebuiltTemplate`).
-- [ ] **1.2 Buat `src/lib/format.ts`**:
+- [x] **1.2 Buat `src/lib/format.ts`**:
   - Buat `formatIDR(amount: number): string` yang menghasilkan format `Rp 2.450.000` (tanpa desimal `,00`).
   - Buat `formatWatt(watt: number): string` yang menghasilkan `${watt}W`.
   - Buat `generateWhatsAppBuildUrl(phone: string, items: SelectedBuildItem[], totalPrice: number, options: { assembleService: boolean; notes?: string }): string` yang menyusun teks pesanan rapi untuk dikirim ke WhatsApp Admin.
   - Buat `generateBuildPlainText(items: SelectedBuildItem[], totalPrice: number, totalWattage: number): string` untuk fitur *Copy to Clipboard* (format tabel teks/markdown untuk Discord & Forum).
-- [ ] **1.3 Buat `src/lib/mock-data.ts`**:
+- [x] **1.3 Buat `src/lib/mock-data.ts`**:
   - Buat minimal **40 produk hardware nyata** dengan harga Rupiah akurat dan `specs` lengkap yang mencakup semua 11 kategori:
     - **CPU**: AMD Ryzen 5 7500F (AM5), Ryzen 7 7800X3D (AM5), Ryzen 7 9700X (AM5), Ryzen 5 5600 (AM4), Intel Core i5-12400F (LGA1700), Core i5-14400F (LGA1700), Core i7-14700K (LGA1700).
     - **Motherboard**: ASRock B650M Pro RS (AM5, DDR5, mATX), MSI MAG B650 Tomahawk WiFi (AM5, DDR5, ATX), ASRock B550M Pro4 (AM4, DDR4, mATX), MSI PRO B760M-A WiFi DDR4 (LGA1700, DDR4, mATX), ASUS TUF Gaming B760M-PLUS WiFi II (LGA1700, DDR5, mATX).
